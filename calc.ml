@@ -1,94 +1,113 @@
-(* Интерпретатор языка "калькулятор с переменными".
- * Программа на этом языке -- список выражений, разделенных ';'.
- * Все выражения, кроме последнего -- присваивания.
- * Последнее -- арифметическое выражение, которое могло использовать переменные
- * Пример: 
- *   x := 2;
- *   y := x + 3;
- *   x + y
- *)
-
-(* модуль с функциями для печати в стандартный поток вывода *)
 open Printf
 
 type op = Add | Sub | Div | Mult
-
-type binOp = expr * BinOp of op * expr 
-
-(* тип для арифметического выражения *)
-type expr = Num of int | Var of char
-
-(* тип для списка присваиваний *)
-type assigns = Assign of char * expr | Seq of assigns * assigns 
-
-(* алиас типа для программ языка калькулятора *)
+type expr = Num of int | Var of char | BinOp of expr * op * expr
+type assigns = Assign of char * expr | Seq of assigns * assigns | Nil
 type calc = assigns * expr
 
-(* построение строкового представления выражения *)
-let string_of_expr x = 
-  let rec print = function 
-  | Num i     -> sprintf "%d" i
-  | Var c     -> sprintf "%c" c
-  | Add (x,y) -> sprintf "%s + %s" (print x) (print y) 
-  in sprintf "%s" (print x)
+(*----------------------------------------Print functions------------------------------------*)
 
-(* печать выражения в стандартный поток вывода *)
-let print_expr x = printf "%s\n%!" (string_of_expr x)
+let stringify_expr x =
+    let stringify_op op =
+    match op with
+    | Add       -> sprintf "+"
+    | Sub       -> sprintf "-"
+    | Div       -> sprintf "/"
+    | Mult      -> sprintf "*"
+    in
+    
+    let rec print = function 
+    | Num i     -> sprintf "%d" i
+    | Var c     -> sprintf "%c" c
+    | BinOp (x, op, y) -> sprintf "%s %s %s" (print x) (stringify_op op) (print y) 
+    in sprintf "%s" (print x)
 
-(* построение сторокового представления списка присваиваний *)
-let string_of_assign x = 
+let print_expr x = printf "%s\n%!" (stringify_expr x)
+
+let stringify_assign x = 
   let rec print = function
-  | Assign (x, e) -> sprintf "%c := %s" x (string_of_expr e)
+  | Nil -> sprintf "[]"
+  | Assign (x, e) -> sprintf "%c := %s" x (stringify_expr e)
   | Seq (x, y)    -> sprintf "%s;\n%s" (print x) (print y)
   in sprintf "%s" (print x)
 
-(* печать списка присваиваний в стандартный поток *)
-let print_assigns x = printf "%s\n%!" (string_of_assign x)
+let print_assign x = printf "%s\n%!" (stringify_assign x)
 
-(* построение строкового представления программы *)
-let string_of_calc (s, e) = sprintf "%s;\n%s" (string_of_assign s) (string_of_expr e)
+let stringify_calc (s, e) = sprintf "%s;\n%s" (stringify_assign s) (stringify_expr e)
 
-(* печать программы в стандартный поток *)
-let print_calc x = printf "%s\n%!" (string_of_calc x)
+let print_calc x = printf "%s\n%!" (stringify_calc x)
 
-(* Вычисление целочисленного значения выражения e
- * env -- environment, список пар (переменная, значение), 
- * где значение -- значение выражения, присвоенного данной переменной где-то ранее
- *)
-let eval_expr env e = 
-  let rec eval env = function
-  | Num i     -> i
-  | Var v     -> List.assoc v env
-  | Add (x,y) -> eval env x + eval env y
-  in eval env e
+(*-------------------------------------------------------------------------------------------*)
 
-(* Вычисление "значения" списка присваиваний.
- * В данном случае значением является environment, 
- * используемый для вычисления значений выражений
- *)
-let eval_assigns s = 
-  let rec eval env = function 
-  | Assign (x, e) -> (x, eval_expr env e) :: env
-  | Seq (x, y) -> let env' = eval env x in eval env' y
-  in eval [] s 
 
-(* Вычисление значения программы 
- * Сначала обрабатываем список присваиваний, 
- * потом вычисляем значение финального выражения в этом окружении 
- *)
-let eval_calc (s, e) = eval_expr (eval_assigns s) e
+(*------------------------------------Eval functions------------------------------------------*)
 
-(* основная функция, несколько примеров *)
+let eval_expr env expr =
+    let get_op_func op =
+        match op with
+        | Add       -> (+)
+        | Sub       -> (-)
+        | Div       -> (/)
+        | Mult      -> ( * )
+    in
+
+    let rec eval env = function
+    | Num i     -> i
+    | Var v     -> if (List.mem_assoc v env) then (List.assoc v env) else raise (Failure ("Variable " ^ (Char.escaped v) ^ " is not defined"))
+    | BinOp (x, op, y) -> (get_op_func op) (eval env x) (eval env y)
+    in eval env expr
+
+let eval_assigns s =
+    let rec eval env = function
+    | Nil -> env
+    | Assign (x, expr) -> (x, eval_expr env expr) :: env
+    | Seq (x, y) -> let env' = eval env x in eval env' y
+    in eval [] s 
+
+let eval_calc (s, expr) = eval_expr (eval_assigns s) expr
+
+(*-------------------------------------------------------------------------------------------*)
+
+
+(*------------------------------------Tests---------------------------------------------------*)
+
 let _ =
-  let s0 = Assign ('x', Num 5) in
-  let s1 = Assign ('c', (Add (Num 2, Num 3))) in
-  let s2 = Assign ('y', Num 42) in
-  let s3 = Seq (s0, (Seq (s1, Seq (s2, Assign ('z', Num 32))))) in
   
-  printf "\n";
-  
-  let c0 = s3, (Add(Var 'c', Add (Var 'z', Add (Var 'x', Var 'y')))) in 
+    printf "------------Test 1------------\n\n" ;
+    let expression = BinOp(Num 2, Add, BinOp(Num 2, Mult, Num 2)) in
+    printf "Expression: " ;
+    print_expr expression ;
+    printf "Answer: %d\n\n%!" (eval_calc (Nil, expression)) ;
+    printf "------------------------------\n\n" ;
 
-  print_calc c0 ;
-  
-  printf "\n%d\n%!" (eval_calc c0);
+
+    printf "------------Test 2------------\n\n" ;
+    let s1 = Assign('x', BinOp(Num 2, Mult, Num 5)) in
+    let s2 = Assign('y', BinOp(Num 100, Div, Var 'x')) in
+    let s3 = Assign('z', Num 2) in
+
+    let assigns = Seq(s1, Seq(s2, s3)) in
+    let expression = BinOp(Var 'x', Add, BinOp(Var 'y', Sub, Var 'z')) in
+    printf "Expression: " ;
+    print_expr expression ;
+    printf "Assigns: \n" ;
+    print_assign assigns ;
+    printf "Answer: %d\n\n%!" (eval_calc (assigns, expression)) ;
+    printf "------------------------------\n\n" ;
+
+
+    printf "------------Test 3------------\n\n" ;
+    let s1 = Assign('x', BinOp(Num 2, Mult, Num 5)) in
+    let s2 = Assign('y', BinOp(Num 10, Mult, Var 'x')) in
+    let s3 = Assign('z', BinOp(Num 6, Div, Num 2)) in
+
+    let assigns = Seq(s1, Seq(s2, s3)) in
+    let expression = BinOp(Var 'x', Mult, BinOp(Var 'y', Sub, Var 'b')) in
+    printf "Expression: " ;
+    print_expr expression ;
+    printf "Assigns: \n" ;
+    print_assign assigns ;
+    printf "Answer: %d\n\n%!" (eval_calc (assigns, expression)) ;
+    printf "------------------------------\n\n" ;
+    
+(*-------------------------------------------------------------------------------------------*)
