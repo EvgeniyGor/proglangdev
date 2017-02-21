@@ -1,0 +1,77 @@
+\begin{problem}
+  Выписать семантику выражений языка While
+  
+  \begin{equation}
+    \llbracket n \rrbracket  = \lambda s.n
+  \end{equation}
+
+  \begin{equation}
+      \llbracket x \in V  \rrbracket = \lambda s.s \ x
+  \end{equation}
+  
+  \begin{equation}
+      \llbracket A \ (+,\ *) \ B \rrbracket = 
+        \lambda s. \llbracket A \rrbracket \ s \ (+,\ *) \ \llbracket B \rrbracket \ s
+  \end{equation}
+
+  \begin{equation}
+    \llbracket A - B \rrbracket = \lambda s.
+    \begin{cases}
+      \llbracket A \rrbracket \ s - \llbracket B \rrbracket \ s, \ \llbracket A \rrbracket \ s > \llbracket B \rrbracket \ s \\
+      undef,\ otherwise
+    \end{cases}
+  \end{equation}
+
+  \begin{equation}
+    \llbracket A \ (/,\ \%) \ B \rrbracket = \lambda s.
+    \begin{cases}
+      \llbracket A \rrbracket \ s \ (/,\ \%) \ \llbracket B \rrbracket \ s, \ \llbracket B \rrbracket \ s \ne 0 \\
+      undef,\ otherwise
+    \end{cases}
+  \end{equation}
+
+  \begin{equation}
+    \llbracket A \ \otimes \ B \rrbracket = \lambda s.
+    \begin{cases}
+      1, \ \llbracket A \rrbracket \ s \ \otimes \  \llbracket B \rrbracket \ s \\
+      0,\ otherwise
+    \end{cases}
+    \otimes = \{ ==,\ \ne,\ >,\ \geq, <,\ \leq \} 
+  \end{equation}
+
+  \begin{equation}
+    \llbracket x \in \{1,\ 0 \} \ (\&\&,\ ||) \ y \in \{1,\ 0 \} \rrbracket = \lambda s.
+      x \ (\&\&,\ ||) \ y \
+  \end{equation}
+
+\end{problem}
+
+\newpage
+
+\begin{problem}
+  Вычислить семантику следующей программы на языке While
+  
+  \begin{lstlisting}
+  read(n);
+  i := 1;
+  while n > 0 do {
+    i := i * n;
+    n := n - 1
+  };
+  write(i)
+  \end{lstlisting}
+\end{problem}
+
+$(\bot,\ n,\ o) \xrightarrow{read(x)} (s\ [n \gets x],\ i,\ o)$ \\
+
+$(s\ [n \gets x],\ i,\ o) \xrightarrow{i := 1} (s\ [n \gets x,\ i \gets 1],\ i,\ o)$ \\
+
+\[(s\ [n \gets x,\ i \gets 1],\ i,\ o) \xrightarrow{i := i * n} (s\ [n \gets x,\ i \gets i*x],\ i,\ o)\]
+
+\[(s\ [n \gets x,\ i \gets i*x],\ i,\ o) \xrightarrow{n := n - 1} (s\ [n \gets x - 1,\ i \gets i*x],\ i,\ o)\]
+
+\[\uparrow\]
+
+\[(s\ [n \gets x,\ i \gets 1],\ i,\ o) \xrightarrow{while} (s\ [\ n \gets 0,\ i \gets x!],\ i,\ o)\] \\
+
+$(s\ [n \gets 0,\ i \gets x!],\ i,\ o) \xrightarrow{write(i)} (s\ [n \gets 0,\ i \gets x!],\ i,\ o:[x!])$
