@@ -1,13 +1,13 @@
 open Expr
 
 type instr =
-| READ
-| WRITE
-| PUSH of int
-| LOAD   of string
-| STORE   of string
-| ADD  
-| MUL
+    | READ
+    | WRITE
+    | PUSH of int
+    | LOAD of string
+    | STORE of string
+    | ADD  
+    | MUL
 
 type prg = instr list
 

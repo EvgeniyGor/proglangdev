@@ -1,3 +1,5 @@
+SOURCE=./src/
+
 all: Driver.cmo
 	ocamlc -rectypes -o Driver -I `ocamlfind -query GT` GT.cma Expr.cmo StackMachine.cmo X86.cmo Driver.cmo
 	rm -Rf *~ *.cm[oi]
