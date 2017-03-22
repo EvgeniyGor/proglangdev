@@ -51,6 +51,5 @@ let gen n =
   gen_read n 0 |>
   write @@ gensum n 0
 
-(*let _ =
-  Printf.printf "%s" (show(stmt) @@ gen 300)
-*)
+let _ =
+  Printf.printf "%s\n" (compile p)
