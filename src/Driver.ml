@@ -52,4 +52,4 @@ let gen n =
   write @@ gensum n 0
 
 let _ =
-  Printf.printf "%s\n" (compile p)
+  match Sys.argv

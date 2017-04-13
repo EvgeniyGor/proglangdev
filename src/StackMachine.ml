@@ -1,5 +1,21 @@
 open Expr
 
+module Program
+  struct
+      let eval =   let (_, _, _, output) = 
+    srun' prg ([], 
+              (fun _ -> failwith "undefined variable"),
+              input,
+              []
+             ) 
+  in
+  output
+ end
+
+ module Instr = 
+  struct
+
+
 type instr =
     | READ
     | WRITE
@@ -9,7 +25,19 @@ type instr =
     | ADD  
     | MUL
 
-type prg = instr list
+  end
+
+
+module Program =
+  struct
+
+    type t = Instr.t list
+
+  end
+
+
+module Interpret = 
+ struct
 
 let srun prg input =
   let rec srun' prg ((stack, state, input, output) as conf) =
@@ -39,24 +67,44 @@ let srun prg input =
 
         )
   in
-  let (_, _, _, output) = 
-    srun' prg ([], 
-              (fun _ -> failwith "undefined variable"),
-              input,
-              []
-             ) 
-  in
-  output
 
-let rec comp_expr = function 
+end
+
+
+module Compile =
+ struct
+
+   open Instr
+
+   module Expr =
+    struct
+
+      open Language.Expr
+
+let rec compile = function 
 | Var x      -> [LOAD   x]
 | Const n    -> [PUSH n]
-| Add (x, y) -> (comp_expr x) @ (comp_expr y) @ [ADD]
-| Mul (x, y) -> (comp_expr x) @ (comp_expr y) @ [MUL]
+| Add (x, y) -> (compile x) @ (compile y) @ [ADD]
+| Mul (x, y) -> (compile x) @ (compile y) @ [MUL]
 
-let rec comp = function
+    module Stmt =
+      struct
+
+        open Language.Stmt
+
+let rec compile = function
 | Skip          -> []
-| Assign (x, e) -> comp_expr e @ [STORE x]
+| Assign (x, e) -> Expr.compile e @ [STORE x]
 | Read    x     -> [READ; STORE x]
-| Write   e     -> comp_expr e @ [WRITE]
-| Seq    (l, r) -> comp l @ comp r
+| Write   e     -> Expr.compile e @ [WRITE]
+| Seq    (l, r) -> compile l @ compile r
+
+
+  module Program =
+    struct
+
+      let compile = Stmt.compile
+
+    end
+  end
+end
