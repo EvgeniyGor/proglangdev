@@ -1,55 +1,50 @@
+open Language
 open Expr
-open StackMachine
-open GT
+open Stmt
+open Ostap
 
-(* EDSL = Embedded Domain-Specific Language
-          Встроенный предметно-ориентированный язык
-   Deep Embedding
-*)
+let parse filename = 
+  let s = Util.read filename in
+  Util.parse 
+    (object 
+       inherit Matcher.t s 
+       inherit Util.Lexers.ident ["read"; "write"; "skip"; "if"; "fi"; "then"; "else"; "while"; "do"; "od"; "repeat"; "until"; "for"] s
+       inherit Util.Lexers.decimal s
+       inherit Util.Lexers.skip [
+         Matcher.Skip.whitespaces " \t\n";
+	 Matcher.Skip.lineComment "--";
+	 Matcher.Skip.nestedComment "(*" "*)"
+       ] s
+    end)
+    (ostap (!(Stmt.parse) -EOF))
 
-let inc x = x+1
-
-let ( !  ) x   = Var   x
-let const  n   = Const n
-let ( +  ) x y = Add  (x, y)
-let ( *  ) x y = Mul  (x, y)
-
-let read  x  = Read  x
-let write e  = Write e
-let (:=) x e = Assign (x, e)
-let skip     = Skip
-let (|>) l r = Seq (l, r)
-
-(*
-  read (x);
-  read (y);
-  z := x * y;
-  write (z)
-*)
-  
-let p =
-  read "x" |>
-  read "y" |>
-  ("z" := !"x" * !"y" + const 1) |>
-  write !"z"
-
-let _ =
-  Printf.printf "%s\n" (show(list) (show(int)) @@ run p [10; 20]);
-  Printf.printf "%s\n" (show(list) (show(int)) @@ srun (comp p) [10; 20])
-
-let gen n =
-  let rec gen_read n i =
-    if i > n 
-    then skip
-    else read (Printf.sprintf "x%d" i) |> gen_read n (inc i)
-  in
-  let rec gensum n i =
-    if i > n 
-    then Const 0
-    else !(Printf.sprintf "x%d" i) + gensum n (inc i)
-  in
-  gen_read n 0 |>
-  write @@ gensum n 0
-
-let _ =
-  match Sys.argv
+let main =
+  try
+    let interpret  = Sys.argv.(1) = "-i"  in
+    let stack      = Sys.argv.(1) = "-s"  in
+    let to_compile = not (interpret || stack) in
+    let infile     = Sys.argv.(if not to_compile then 2 else 1) in
+    match parse infile with
+    | `Ok prog ->
+      if to_compile
+      then 
+        let basename = Filename.chop_suffix infile ".expr" in
+        ignore @@ X86.build prog basename
+      else 
+	let rec read acc =
+	  try
+	    let r = read_int () in
+	    Printf.printf "> ";
+	    read (acc @ [r]) 
+          with End_of_file -> acc
+	in
+	let input = read [] in	
+	let output = 
+	  if interpret 
+	  then Interpret.Program.eval prog input 
+	  else StackMachine.Interpret.run (StackMachine.Compile.Program.compile prog) input
+	in
+	List.iter (fun i -> Printf.printf "%d\n" i) output
+    | `Fail er -> Printf.eprintf "Syntax error: %s\n" er
+  with Invalid_argument _ ->
+    Printf.printf "Usage: rc [-i] <input file.expr>\n"
